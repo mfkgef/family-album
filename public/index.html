@@ -38,7 +38,7 @@
       display: flex; align-items: center; justify-content: center; transition: filter .2s; }
     .btn-icon:hover { filter: brightness(1.3); }
 
-    /* ── 自动备份状态条 */
+    /* ── 备份状态条（顶部小条） */
     #backup-bar {
       margin: 0 16px 8px; padding: 8px 14px; border-radius: 8px;
       background: var(--bg2); font-size: 12px; color: var(--text2);
@@ -47,14 +47,37 @@
     #backup-bar.active { background: rgba(232,201,122,.12); color: var(--accent); }
     #backup-bar.done   { background: rgba(80,200,120,.12); color: #5c8; }
     #backup-bar.hidden { display: none; }
-    .backup-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor;
-      flex-shrink: 0; }
+    .backup-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
     .backup-dot.pulse { animation: pulse 1.2s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
     @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
-    #backup-bar.done { background: rgba(80,200,120,.12); color: #5c8; }
+    @keyframes fadeIn  { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
     .btn-sm { padding: 4px 12px; border-radius: 12px; border: 1px solid currentColor;
       background: none; color: inherit; font-size: 12px; cursor: pointer; }
+
+    /* ── 全局备份进度悬浮卡 */
+    #backup-float {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+      width: calc(100% - 32px); max-width: 480px;
+      background: var(--bg2); border-radius: 16px;
+      padding: 14px 18px; z-index: 300;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      border: 1px solid rgba(255,255,255,.06);
+      animation: fadeIn .25s ease;
+      display: none;
+    }
+    #backup-float.visible { display: block; }
+    .bf-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .bf-title { font-size:14px; font-weight:700; display:flex; align-items:center; gap:8px; }
+    .bf-pct { font-size:13px; color:var(--accent); font-weight:700; }
+    .bf-track { height:6px; background:var(--bg3); border-radius:6px; overflow:hidden; margin-bottom:8px; }
+    .bf-fill  { height:100%; background:linear-gradient(90deg,var(--accent2),var(--accent));
+      border-radius:6px; transition:width .4s ease; width:0%; }
+    .bf-detail { font-size:12px; color:var(--text2); display:flex; justify-content:space-between; }
+    .bf-done { color:#5c8 !important; }
+    /* 上传中闪烁图标 */
+    .spin { display:inline-block; animation:spin 1s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
 
     /* ── Tab 栏 */
     #tabs { display: flex; gap: 4px; padding: 0 16px 10px; overflow-x: auto; }
@@ -251,6 +274,22 @@
 
       <!-- 上次备份信息 -->
       <div id="bp-last-info" style="margin-top:16px;text-align:center;font-size:12px;color:var(--text2)"></div>
+    </div>
+  </div>
+
+  <!-- 全局备份进度悬浮卡（备份中始终可见） -->
+  <div id="backup-float">
+    <div class="bf-header">
+      <div class="bf-title">
+        <span id="bf-icon">⏳</span>
+        <span id="bf-title-text">正在备份...</span>
+      </div>
+      <span class="bf-pct" id="bf-pct">0%</span>
+    </div>
+    <div class="bf-track"><div class="bf-fill" id="bf-fill"></div></div>
+    <div class="bf-detail">
+      <span id="bf-detail-left">准备中</span>
+      <span id="bf-detail-right"></span>
     </div>
   </div>
 
@@ -678,9 +717,7 @@ async function handleFiles(files) {
 // ══════════════════════════════════════════════
 // 自动备份（手机端 PWA）
 // ══════════════════════════════════════════════
-// 原理：使用 <input type=file capture> 不现实做真正后台备份
-// ══════════════════════════════════════════════
-// 备份面板
+// 备份面板 & 全局进度悬浮卡
 // ══════════════════════════════════════════════
 const BACKUP_KEY = 'family_album_backup';
 let backupRunning = false;
@@ -691,10 +728,10 @@ function getBackupState() {
 }
 function saveBackupState(s) { localStorage.setItem(BACKUP_KEY, JSON.stringify(s)); }
 
+// ── 面板开关 ────────────────────────────────
 function openBackupPanel() {
   const panel = document.getElementById('backup-panel');
   panel.style.display = 'flex';
-  // 更新上次备份信息
   const state = getBackupState();
   const info = document.getElementById('bp-last-info');
   if (state.lastBackup) {
@@ -703,59 +740,88 @@ function openBackupPanel() {
   } else {
     info.textContent = '尚未备份过';
   }
-  // 检测浏览器是否支持文件夹选择
   const testInput = document.createElement('input');
   testInput.type = 'file';
   const supportsDir = 'webkitdirectory' in testInput;
   document.getElementById('bp-folder-btn').style.display = supportsDir ? '' : 'none';
+  // 备份中时面板内也展示进度
+  document.getElementById('bp-progress').style.display = backupRunning ? 'block' : 'none';
 }
 
 function closeBackupPanel() {
-  if (backupRunning) return; // 备份中不允许关闭
   document.getElementById('backup-panel').style.display = 'none';
-  document.getElementById('bp-progress').style.display = 'none';
 }
 
-// 选择单个/多个文件
+// ── 悬浮卡更新 ──────────────────────────────
+function floatShow() { document.getElementById('backup-float').classList.add('visible'); }
+function floatHide() {
+  const el = document.getElementById('backup-float');
+  el.classList.remove('visible');
+  setTimeout(() => { if (!backupRunning) el.classList.remove('visible'); }, 3000);
+}
+function floatUpdate({ pct = 0, titleText = '', detailLeft = '', detailRight = '', done = false }) {
+  document.getElementById('bf-fill').style.width = pct + '%';
+  document.getElementById('bf-pct').textContent = pct + '%';
+  document.getElementById('bf-title-text').textContent = titleText;
+  document.getElementById('bf-detail-left').textContent = detailLeft;
+  document.getElementById('bf-detail-right').textContent = detailRight;
+  const icon = document.getElementById('bf-icon');
+  if (done) {
+    icon.textContent = '✅';
+    icon.classList.remove('spin');
+    document.getElementById('bf-pct').classList.add('bf-done');
+  } else {
+    icon.textContent = '⬆️';
+    icon.classList.remove('spin');
+    document.getElementById('bf-pct').classList.remove('bf-done');
+  }
+  // 同步更新面板内进度条
+  const panelBar = document.getElementById('bp-bar');
+  const panelStatus = document.getElementById('bp-status-text');
+  const panelCount = document.getElementById('bp-count-text');
+  if (panelBar) panelBar.style.width = pct + '%';
+  if (panelStatus) panelStatus.textContent = titleText;
+  if (panelCount) panelCount.textContent = detailRight;
+}
+
+// ── 选文件 ──────────────────────────────────
 function backupSelectFiles() {
   if (backupRunning) return;
   const input = document.createElement('input');
   input.type = 'file';
   input.multiple = true;
   input.accept = 'image/*,video/*';
-  input.onchange = () => input.files.length && startBackup(input.files);
+  input.onchange = () => { if (input.files.length) startBackup(Array.from(input.files)); };
   input.click();
 }
 
-// 选择整个文件夹（安卓 Chrome / 桌面 Chrome 支持）
 function backupSelectFolder() {
   if (backupRunning) return;
   const input = document.createElement('input');
   input.type = 'file';
   input.multiple = true;
   input.webkitdirectory = true;
-  // 只保留图片和视频
   input.onchange = () => {
-    const allowed = Array.from(input.files).filter(f => /\.(jpe?g|png|gif|webp|heic|heif|mp4|mov|avi|mkv|3gp)$/i.test(f.name));
+    const allowed = Array.from(input.files).filter(f =>
+      /\.(jpe?g|png|gif|webp|heic|heif|mp4|mov|avi|mkv|3gp)$/i.test(f.name));
     if (allowed.length) startBackup(allowed);
   };
   input.click();
 }
 
-async function startBackup(filesOrArr) {
+// ── 核心上传逻辑（逐文件上传，关闭相册即可见进度） ──
+async function startBackup(fileArr) {
   backupRunning = true;
-  const fileArr = Array.from(filesOrArr);
-  const progress = document.getElementById('bp-progress');
-  const statusText = document.getElementById('bp-status-text');
-  const countText = document.getElementById('bp-count-text');
-  const bar = document.getElementById('bp-bar');
-  progress.style.display = 'block';
-  bar.style.width = '0%';
-  statusText.textContent = `检测 ${fileArr.length} 个文件...`;
-  countText.textContent = '';
+  // 立即关闭备份面板，让进度卡成为唯一焦点
+  document.getElementById('backup-panel').style.display = 'none';
+  document.getElementById('bp-progress').style.display = 'block';
 
-  // 去重检查
+  floatShow();
+  floatUpdate({ pct: 0, titleText: `读取 ${fileArr.length} 个文件...`, detailLeft: '去重检查中', detailRight: '' });
+
+  // ── 1. 去重检查 ─────────────────────────────
   let toUpload = fileArr;
+  let skipped = 0;
   try {
     const res = await fetch('/api/check-exists', {
       method: 'POST',
@@ -764,56 +830,64 @@ async function startBackup(filesOrArr) {
     }).then(r => r.json());
     const existSet = new Set(res.exists || []);
     toUpload = fileArr.filter(f => !existSet.has(f.name));
-    const skipped = fileArr.length - toUpload.length;
-    if (!toUpload.length) {
-      statusText.textContent = '✅ 所有照片已是最新，无需备份';
-      countText.textContent = `共 ${fileArr.length} 个`;
-      bar.style.width = '100%';
-      backupRunning = false;
-      _backupDone(0);
-      return;
-    }
-    statusText.textContent = `发现 ${toUpload.length} 个新文件，开始上传...`;
-    countText.textContent = `已备份 ${skipped} 个`;
-  } catch (_) {
-    statusText.textContent = `上传 ${toUpload.length} 个文件...`;
+    skipped = fileArr.length - toUpload.length;
+  } catch (_) {}
+
+  if (!toUpload.length) {
+    floatUpdate({ pct: 100, titleText: '所有照片已是最新 ✅', detailLeft: `共 ${fileArr.length} 个，无需上传`, detailRight: '100%', done: true });
+    backupRunning = false;
+    _backupDone(0);
+    setTimeout(floatHide, 4000);
+    return;
   }
 
-  // 分批上传
-  const BATCH = 5;
+  floatUpdate({
+    pct: 0,
+    titleText: `正在备份（${toUpload.length} 个新文件）`,
+    detailLeft: `已跳过 ${skipped} 个重复`,
+    detailRight: `0 / ${toUpload.length}`
+  });
+
+  // ── 2. 逐文件上传（每传完一个立即刷新进度） ─
   let done = 0;
-  for (let i = 0; i < toUpload.length; i += BATCH) {
-    const batch = toUpload.slice(i, i + BATCH);
+  let failed = 0;
+  for (let i = 0; i < toUpload.length; i++) {
+    const f = toUpload[i];
     const fd = new FormData();
-    batch.forEach(f => fd.append('files', f));
+    fd.append('files', f);
     try {
       await fetch('/api/upload', { method: 'POST', body: fd });
-      done += batch.length;
-    } catch (_) {}
-    const pct = Math.round(done / toUpload.length * 100);
-    bar.style.width = pct + '%';
-    statusText.textContent = `备份中 ${done} / ${toUpload.length}`;
-    countText.textContent = pct + '%';
+      done++;
+    } catch (_) {
+      failed++;
+    }
+    const pct = Math.round((i + 1) / toUpload.length * 100);
+    floatUpdate({
+      pct,
+      titleText: `备份中 ${i + 1} / ${toUpload.length}`,
+      detailLeft: f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name,
+      detailRight: pct + '%'
+    });
   }
 
-  statusText.textContent = `✅ 备份完成，本次新增 ${done} 个`;
-  countText.textContent = '100%';
+  // ── 3. 完成 ─────────────────────────────────
+  const msg = failed ? `完成 ${done} 个，${failed} 个失败` : `备份完成，新增 ${done} 个 ✅`;
+  floatUpdate({ pct: 100, titleText: msg, detailLeft: `累计已备份 ${(getBackupState().uploadedCount || 0) + done} 个`, detailRight: '完成', done: true });
   backupRunning = false;
   _backupDone(done);
   init();
+  setTimeout(floatHide, 5000); // 5秒后自动收起
 }
 
 function _backupDone(count) {
   const state = getBackupState();
   saveBackupState({ ...state, lastBackup: new Date().toISOString(), uploadedCount: (state.uploadedCount || 0) + count });
-  // 更新状态条
   const bar = document.getElementById('backup-bar');
   const text = document.getElementById('backup-text');
   bar.classList.remove('hidden', 'active');
   bar.classList.add('done');
   const d = new Date();
   text.textContent = `上次备份：${d.toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}`;
-  // 更新面板内信息
   const info = document.getElementById('bp-last-info');
   if (info) info.textContent = `上次备份：刚刚  累计 ${getBackupState().uploadedCount || 0} 个文件`;
 }

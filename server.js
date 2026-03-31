@@ -185,11 +185,7 @@ function classifyByRules(item) {
     if (kws.some(k => name.includes(k))) tags.push(tag);
   }
 
-  // 5. 类型
-  if (item.type === 'video') tags.push('视频');
-  else tags.push('照片');
-
-  // 6. 截图检测（文件名含 screenshot / 微信 等）
+  // 5. 截图检测（文件名含 screenshot / 微信 等）
   if (/screenshot|screen_shot|截图|微信图片|wx_camera/i.test(name)) {
     tags.push('截图');
   }

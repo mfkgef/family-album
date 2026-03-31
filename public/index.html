@@ -467,7 +467,7 @@ async function loadTimeline() {
   const tl = document.getElementById('tab-timeline');
   tl.innerHTML = '';
   try {
-    _tlGroups = await fetch('/api/timeline').then(r => r.json());
+    _tlGroups = await fetch('/api/timeline', { cache: 'no-store' }).then(r => r.json());
     if (!_tlGroups.length) { document.getElementById('empty').style.display = 'flex'; return; }
     document.getElementById('empty').style.display = 'none';
     renderTimelineGrid(tl);
@@ -520,7 +520,7 @@ async function openMonthDetail(g) {
   const key = `${g.year}-${g.month}`;
   let data = _monthCache[key];
   if (!data) {
-    data = await fetch(`/api/media?year=${g.year}&month=${g.month}&limit=500`).then(r => r.json());
+    data = await fetch(`/api/media?year=${g.year}&month=${g.month}&limit=500`, { cache: 'no-store' }).then(r => r.json());
     _monthCache[key] = data;
   }
   renderMediaItems(document.getElementById('month-detail-grid'), data.items);
@@ -533,7 +533,7 @@ async function loadTags() {
   const el = document.getElementById('tab-tags');
   el.innerHTML = '<div style="padding:16px 4px;font-size:13px;color:var(--text2)">按规则自动分类</div>';
   try {
-    const tags = await fetch('/api/tags').then(r => r.json());
+    const tags = await fetch('/api/tags', { cache: 'no-store' }).then(r => r.json());
     if (!tags.length) { el.innerHTML += '<p style="color:var(--text2);padding:20px">上传照片后自动生成分类</p>'; return; }
     const grid = document.createElement('div');
     grid.className = 'category-grid';
@@ -565,7 +565,7 @@ async function openTagView(tag) {
       <span style="font-size:16px;font-weight:700">${tag}</span>
     </div>
     <div class="media-grid" id="tag-grid"></div>`;
-  const data = await fetch(`/api/media?tag=${encodeURIComponent(tag)}&limit=500`).then(r => r.json());
+  const data = await fetch(`/api/media?tag=${encodeURIComponent(tag)}&limit=500`, { cache: 'no-store' }).then(r => r.json());
   renderMediaItems(document.getElementById('tag-grid'), data.items);
 }
 
@@ -576,7 +576,7 @@ async function loadRegions() {
   const el = document.getElementById('tab-regions');
   el.innerHTML = '<div style="padding:16px 4px;font-size:13px;color:var(--text2)">按 EXIF GPS 自动识别地点</div>';
   try {
-    const regions = await fetch('/api/regions').then(r => r.json());
+    const regions = await fetch('/api/regions', { cache: 'no-store' }).then(r => r.json());
     if (!regions.length) {
       el.innerHTML += '<p style="color:var(--text2);padding:20px">上传含 GPS 信息的照片后自动显示地点</p>';
       return;
@@ -611,7 +611,7 @@ async function openRegionView(region) {
       <span style="font-size:16px;font-weight:700">📍 ${region}</span>
     </div>
     <div class="media-grid" id="region-grid"></div>`;
-  const data = await fetch(`/api/media?region=${encodeURIComponent(region)}&limit=500`).then(r => r.json());
+  const data = await fetch(`/api/media?region=${encodeURIComponent(region)}&limit=500`, { cache: 'no-store' }).then(r => r.json());
   renderMediaItems(document.getElementById('region-grid'), data.items);
 }
 

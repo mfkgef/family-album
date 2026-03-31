@@ -3,35 +3,69 @@ const fs = require('fs');
 const path = require('path');
 
 function svgIcon(size) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${size*0.18}" fill="#0a0a0f"/>
-  <rect x="${size*0.12}" y="${size*0.12}" width="${size*0.76}" height="${size*0.76}" rx="${size*0.1}" fill="#13131a"/>
-  <text x="50%" y="58%" font-size="${size*0.44}" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">🎞</text>
+  const s = size;
+  const r = s * 0.18; // 圆角
+  // 渐变背景：紫蓝渐变
+  // 相机镜头图标（纯几何，无 emoji）
+  const cx = s / 2, cy = s / 2;
+  const outerR = s * 0.28; // 镜头外圆
+  const innerR = s * 0.18; // 镜头内圆
+  const bodyW = s * 0.72, bodyH = s * 0.56;
+  const bodyX = (s - bodyW) / 2, bodyY = s * 0.28;
+  const bodyR = s * 0.08;
+  const humpW = s * 0.28, humpH = s * 0.1;
+  const humpX = (s - humpW) / 2, humpY = bodyY - humpH * 0.6;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6c47ff"/>
+      <stop offset="100%" stop-color="#ff6b9d"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a0c4ff"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <!-- 背景 -->
+  <rect width="${s}" height="${s}" rx="${r}" fill="url(#bg)"/>
+  <!-- 相机机身 -->
+  <rect x="${bodyX}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="${bodyR}" fill="rgba(255,255,255,0.95)"/>
+  <!-- 取景器小凸 -->
+  <rect x="${humpX}" y="${humpY}" width="${humpW}" height="${humpH + s*0.04}" rx="${s*0.04}" fill="rgba(255,255,255,0.95)"/>
+  <!-- 镜头外圆 -->
+  <circle cx="${cx}" cy="${cy + s*0.04}" r="${outerR}" fill="#d0d8ff"/>
+  <!-- 镜头中圆 -->
+  <circle cx="${cx}" cy="${cy + s*0.04}" r="${s*0.22}" fill="#7b8fff"/>
+  <!-- 镜头内圆（高光） -->
+  <circle cx="${cx}" cy="${cy + s*0.04}" r="${innerR}" fill="url(#lens)"/>
+  <!-- 镜头反光 -->
+  <circle cx="${cx - outerR*0.3}" cy="${cy + s*0.04 - outerR*0.3}" r="${s*0.04}" fill="rgba(255,255,255,0.7)"/>
+  <!-- 快门按钮 -->
+  <circle cx="${s*0.76}" cy="${bodyY + s*0.08}" r="${s*0.05}" fill="#ff6b9d"/>
 </svg>`;
 }
 
-// 写 SVG（浏览器可直接使用 SVG 作为 icon）
 const iconsDir = path.join(__dirname, 'public', 'icons');
 fs.mkdirSync(iconsDir, { recursive: true });
 
-// 尝试用 sharp 生成 PNG，否则用 SVG 替代
 async function generate() {
   let sharp;
   try { sharp = require('sharp'); } catch (_) {}
 
   for (const size of [192, 512]) {
     const svgBuf = Buffer.from(svgIcon(size));
+    const svgPath = path.join(iconsDir, `icon-${size}.svg`);
     const pngPath = path.join(iconsDir, `icon-${size}.png`);
+
+    fs.writeFileSync(svgPath, svgBuf);
 
     if (sharp) {
       await sharp(svgBuf).png().toFile(pngPath);
       console.log(`生成 icon-${size}.png`);
     } else {
-      // 没有 sharp 时用 SVG 内容写入（浏览器会尝试加载但会失败，不影响功能）
-      fs.writeFileSync(pngPath.replace('.png', '.svg'), svgBuf);
-      // 复制一个空 PNG 占位
-      fs.writeFileSync(pngPath, svgBuf); // 实际是 SVG 内容，部分设备能处理
-      console.log(`icon-${size} 已创建（SVG格式）`);
+      fs.writeFileSync(pngPath, svgBuf);
+      console.log(`icon-${size} 已创建（SVG格式，建议安装 sharp）`);
     }
   }
 }

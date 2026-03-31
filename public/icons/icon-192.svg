@@ -1,5 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="34.56" fill="#0a0a0f"/>
-  <rect x="23.04" y="23.04" width="145.92000000000002" height="145.92000000000002" rx="19.200000000000003" fill="#13131a"/>
-  <text x="50%" y="58%" font-size="84.48" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">🎞</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6c47ff"/>
+      <stop offset="100%" stop-color="#ff6b9d"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a0c4ff"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <!-- 背景 -->
+  <rect width="192" height="192" rx="34.56" fill="url(#bg)"/>
+  <!-- 相机机身 -->
+  <rect x="26.879999999999995" y="53.760000000000005" width="138.24" height="107.52000000000001" rx="15.36" fill="rgba(255,255,255,0.95)"/>
+  <!-- 取景器小凸 -->
+  <rect x="69.12" y="42.24" width="53.760000000000005" height="26.880000000000003" rx="7.68" fill="rgba(255,255,255,0.95)"/>
+  <!-- 镜头外圆 -->
+  <circle cx="96" cy="103.68" r="53.760000000000005" fill="#d0d8ff"/>
+  <!-- 镜头中圆 -->
+  <circle cx="96" cy="103.68" r="42.24" fill="#7b8fff"/>
+  <!-- 镜头内圆（高光） -->
+  <circle cx="96" cy="103.68" r="34.56" fill="url(#lens)"/>
+  <!-- 镜头反光 -->
+  <circle cx="79.872" cy="87.552" r="7.68" fill="rgba(255,255,255,0.7)"/>
+  <!-- 快门按钮 -->
+  <circle cx="145.92000000000002" cy="69.12" r="9.600000000000001" fill="#ff6b9d"/>
 </svg>

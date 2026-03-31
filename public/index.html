@@ -107,7 +107,7 @@
       background: var(--bg3); position: relative; aspect-ratio: 4/3;
       transition: transform .2s; }
     .cat-card:hover { transform: scale(1.03); }
-    .cat-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cat-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
     .cat-card .cat-overlay {
       position: absolute; inset: 0;
       background: linear-gradient(0deg,rgba(0,0,0,.7) 0%,transparent 50%);
@@ -482,8 +482,11 @@ async function loadTags() {
     for (const t of tags) {
       const card = document.createElement('div');
       card.className = 'cat-card';
+      const coverMedia = t.coverType === 'video'
+        ? `<video src="/media/${t.coverFile}#t=1" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></video>`
+        : `<img src="/media/thumbs/${t.cover}.jpg" onerror="this.src='/media/${t.coverFile||t.cover}';this.onerror=null" loading="lazy">`;
       card.innerHTML = `
-        <img src="/media/thumbs/${t.cover}.jpg" onerror="this.style.display='none'" loading="lazy">
+        ${coverMedia}
         <div class="cat-overlay">
           <div class="cat-name">${t.tag}</div>
           <div class="cat-count">${t.count} 个</div>
@@ -524,8 +527,11 @@ async function loadRegions() {
     for (const r of regions) {
       const card = document.createElement('div');
       card.className = 'cat-card';
+      const coverMedia = r.coverType === 'video'
+        ? `<video src="/media/${r.coverFile}#t=1" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></video>`
+        : `<img src="/media/thumbs/${r.cover}.jpg" onerror="this.onerror=null" loading="lazy">`;
       card.innerHTML = `
-        <img src="/media/thumbs/${r.cover}.jpg" onerror="this.style.display='none'" loading="lazy">
+        ${coverMedia}
         <div class="cat-overlay">
           <div class="cat-name">📍 ${r.region}</div>
           <div class="cat-count">${r.count} 张</div>
@@ -785,28 +791,44 @@ function floatUpdate({ pct = 0, titleText = '', detailLeft = '', detailRight = '
 }
 
 // ── 选文件 ──────────────────────────────────
+function _createFileInput(opts, callback) {
+  // 移除上次残留的 input
+  const old = document.getElementById('_backup_input');
+  if (old) old.remove();
+
+  const input = document.createElement('input');
+  input.id = '_backup_input';
+  input.type = 'file';
+  input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+  Object.assign(input, opts);
+  document.body.appendChild(input); // 必须插入 DOM，iOS Safari 才能可靠回调
+
+  // 用 addEventListener 比 .onchange 更可靠
+  input.addEventListener('change', () => {
+    callback(input.files);
+    // 延迟移除，避免某些浏览器提前释放
+    setTimeout(() => { try { input.remove(); } catch(_){} }, 3000);
+  });
+
+  // 用 setTimeout 触发，避免某些 iOS 版本的 focus 问题
+  setTimeout(() => input.click(), 50);
+}
+
 function backupSelectFiles() {
   if (backupRunning) return;
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.multiple = true;
-  input.accept = 'image/*,video/*';
-  input.onchange = () => { if (input.files.length) startBackup(Array.from(input.files)); };
-  input.click();
+  _createFileInput({ multiple: true, accept: 'image/*,video/*' }, (files) => {
+    if (files && files.length) startBackup(Array.from(files));
+  });
 }
 
 function backupSelectFolder() {
   if (backupRunning) return;
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.multiple = true;
-  input.webkitdirectory = true;
-  input.onchange = () => {
-    const allowed = Array.from(input.files).filter(f =>
+  _createFileInput({ multiple: true, webkitdirectory: true }, (files) => {
+    if (!files || !files.length) return;
+    const allowed = Array.from(files).filter(f =>
       /\.(jpe?g|png|gif|webp|heic|heif|mp4|mov|avi|mkv|3gp)$/i.test(f.name));
     if (allowed.length) startBackup(allowed);
-  };
-  input.click();
+  });
 }
 
 // ── 核心上传逻辑（逐文件上传，关闭相册即可见进度） ──
@@ -817,21 +839,26 @@ async function startBackup(fileArr) {
   document.getElementById('bp-progress').style.display = 'block';
 
   floatShow();
-  floatUpdate({ pct: 0, titleText: `读取 ${fileArr.length} 个文件...`, detailLeft: '去重检查中', detailRight: '' });
+  floatUpdate({ pct: 0, titleText: `已选 ${fileArr.length} 个文件，检测中...`, detailLeft: '去重检查中', detailRight: '' });
 
   // ── 1. 去重检查 ─────────────────────────────
   let toUpload = fileArr;
   let skipped = 0;
   try {
-    const res = await fetch('/api/check-exists', {
+    const checkRes = await fetch('/api/check-exists', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: fileArr.map(f => ({ name: f.name, size: f.size })) })
-    }).then(r => r.json());
-    const existSet = new Set(res.exists || []);
-    toUpload = fileArr.filter(f => !existSet.has(f.name));
-    skipped = fileArr.length - toUpload.length;
-  } catch (_) {}
+    });
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      const existSet = new Set(data.exists || []);
+      toUpload = fileArr.filter(f => !existSet.has(f.name));
+      skipped = fileArr.length - toUpload.length;
+    }
+  } catch (e) {
+    console.warn('check-exists 失败，跳过去重直接上传', e);
+  }
 
   if (!toUpload.length) {
     floatUpdate({ pct: 100, titleText: '所有照片已是最新 ✅', detailLeft: `共 ${fileArr.length} 个，无需上传`, detailRight: '100%', done: true });
@@ -844,7 +871,7 @@ async function startBackup(fileArr) {
   floatUpdate({
     pct: 0,
     titleText: `正在备份（${toUpload.length} 个新文件）`,
-    detailLeft: `已跳过 ${skipped} 个重复`,
+    detailLeft: skipped ? `已跳过 ${skipped} 个重复` : '开始上传...',
     detailRight: `0 / ${toUpload.length}`
   });
 
@@ -856,9 +883,15 @@ async function startBackup(fileArr) {
     const fd = new FormData();
     fd.append('files', f);
     try {
-      await fetch('/api/upload', { method: 'POST', body: fd });
-      done++;
-    } catch (_) {
+      const upRes = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (upRes.ok) {
+        done++;
+      } else {
+        console.warn('上传失败:', f.name, upRes.status);
+        failed++;
+      }
+    } catch (e) {
+      console.warn('上传异常:', f.name, e);
       failed++;
     }
     const pct = Math.round((i + 1) / toUpload.length * 100);

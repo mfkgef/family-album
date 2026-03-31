@@ -146,9 +146,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 },
+  limits: { fileSize: 2048 * 1024 * 1024 }, // 2GB
   fileFilter: (req, file, cb) => {
-    const ok = /\.(jpe?g|png|gif|heic|heif|mp4|mov|avi|mkv|webm)$/i.test(
+    // 支持所有常见图片和视频格式，含 iOS HEIC / WebP
+    const ok = /\.(jpe?g|png|gif|webp|heic|heif|mp4|mov|avi|mkv|webm|3gp|m4v)$/i.test(
       path.extname(file.originalname)
     );
     cb(null, ok);
@@ -330,7 +331,13 @@ app.get('/api/tags', (req, res) => {
   const tagMap = {};
   for (const m of media) {
     for (const t of (m.tags || [])) {
-      if (!tagMap[t]) tagMap[t] = { tag: t, count: 0, cover: m.id };
+      if (!tagMap[t]) tagMap[t] = { tag: t, count: 0, cover: m.id, coverType: m.type, coverFile: m.filename };
+      else if (tagMap[t].coverType !== 'image' && m.type === 'image') {
+        // 优先用图片作封面
+        tagMap[t].cover = m.id;
+        tagMap[t].coverType = 'image';
+        tagMap[t].coverFile = m.filename;
+      }
       tagMap[t].count++;
     }
   }
@@ -343,7 +350,12 @@ app.get('/api/regions', (req, res) => {
   const map = {};
   for (const m of media) {
     if (!m.region) continue;
-    if (!map[m.region]) map[m.region] = { region: m.region, count: 0, cover: m.id };
+    if (!map[m.region]) map[m.region] = { region: m.region, count: 0, cover: m.id, coverType: m.type, coverFile: m.filename };
+    else if (map[m.region].coverType !== 'image' && m.type === 'image') {
+      map[m.region].cover = m.id;
+      map[m.region].coverType = 'image';
+      map[m.region].coverFile = m.filename;
+    }
     map[m.region].count++;
   }
   res.json(Object.values(map).sort((a, b) => b.count - a.count));

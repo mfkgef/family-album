@@ -79,20 +79,41 @@
     .spin { display:inline-block; animation:spin 1s linear infinite; }
     @keyframes spin { to{transform:rotate(360deg)} }
 
-    /* ── Tab 栏 */
-    #tabs { display: flex; gap: 4px; padding: 0 16px 10px; overflow-x: auto; }
-    #tabs::-webkit-scrollbar { display: none; }
-    .tab { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;
-      white-space: nowrap; cursor: pointer; border: none;
-      background: var(--bg3); color: var(--text2); transition: all .2s; }
-    .tab.active { background: var(--accent); color: #0a0a0f; }
-
     /* ── 主内容 */
     main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 12px 90px; }
     main::-webkit-scrollbar { width: 4px; }
     main::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 4px; }
 
-    /* ── 时间线 */
+    /* ── 时间线月份封面网格 */
+    .tl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 4px; }
+    @media(min-width:480px){ .tl-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media(min-width:900px){ .tl-grid { grid-template-columns: repeat(4, 1fr); } }
+    .tl-card { border-radius: 12px; overflow: hidden; cursor: pointer;
+      background: var(--bg3); position: relative; aspect-ratio: 1;
+      transition: transform .18s, box-shadow .18s; }
+    .tl-card:hover { transform: scale(1.03); box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+    .tl-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    .tl-card-placeholder { position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 36px; }
+    .tl-card-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(0deg, rgba(0,0,0,.72) 0%, transparent 55%);
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 10px 12px;
+    }
+    .tl-card-label { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    .tl-card-count { font-size: 11px; color: rgba(255,255,255,.65); margin-top: 2px; }
+
+    /* ── 月份详情页顶部返回栏 */
+    .month-detail-header { display: flex; align-items: center; gap: 10px;
+      padding: 10px 4px 14px; position: sticky; top: 0;
+      background: linear-gradient(180deg,var(--bg) 75%,transparent); z-index: 5; }
+    .back-btn { background: none; border: none; color: var(--accent);
+      font-size: 22px; cursor: pointer; padding: 4px 8px 4px 0; line-height: 1; }
+    .month-detail-title { font-size: 18px; font-weight: 700; }
+    .month-detail-count { font-size: 12px; color: var(--text2); margin-left: auto; }
+
+    /* ── 原月份组（保留供其他地方使用） */
     .month-group { margin-bottom: 28px; }
     .month-header { display: flex; align-items: baseline; gap: 8px;
       padding: 8px 4px 10px; position: sticky; top: 0;
@@ -160,23 +181,30 @@
     .nav-item.active .nav-icon { transform: scale(1.1); }
 
     /* ── 灯箱 */
-    #lightbox { position: fixed; inset: 0; z-index: 100;
+    #lightbox { position: fixed; inset: 0; z-index: 500;
       background: rgba(0,0,0,.96); display: none; flex-direction: column; }
     #lightbox.open { display: flex; }
-    #lb-header { display: flex; align-items: center; justify-content: space-between;
-      padding: calc(var(--safe-top)+10px) 14px 10px; }
+    #lb-header { display: flex; align-items: center; justify-content: center;
+      padding: calc(var(--safe-top)+12px) 70px 10px; min-height: 54px; }
     #lb-title { font-size: 13px; color: var(--text2); }
-    #lb-close { font-size: 26px; background: none; border: none; color: var(--text);
-      cursor: pointer; padding: 4px 8px; }
+    #lb-close {
+      position: fixed; bottom: calc(env(safe-area-inset-bottom,0px) + 36px); right: 24px;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: rgba(255,255,255,.18); backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,.3);
+      color: #fff; font-size: 22px; cursor: pointer; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    }
     #lb-body { flex: 1; display: flex; align-items: center; justify-content: center;
       overflow: hidden; position: relative; }
     #lb-body img, #lb-body video { max-width: 100%; max-height: 100%; object-fit: contain; }
     #lb-prev, #lb-next { position: absolute; top: 50%; transform: translateY(-50%);
       background: rgba(255,255,255,.12); border: none; color: #fff; font-size: 26px;
-      padding: 14px 10px; cursor: pointer; border-radius: 6px; transition: background .2s; }
+      padding: 14px 10px; cursor: pointer; border-radius: 6px; transition: background .2s; z-index: 2; }
     #lb-prev { left: 6px; } #lb-next { right: 6px; }
     #lb-prev:hover, #lb-next:hover { background: rgba(255,255,255,.22); }
-    #lb-footer { padding: 10px 14px calc(env(safe-area-inset-bottom,0px)+10px);
+    #lb-footer { padding: 10px 14px calc(env(safe-area-inset-bottom,0px) + 110px);
       display: flex; justify-content: space-between; align-items: center; }
     #lb-info { font-size: 11px; color: var(--text2); }
     .lb-actions { display: flex; gap: 10px; }
@@ -299,14 +327,6 @@
     <span>🎬 <strong id="stat-vid">0</strong></span>
   </div>
 
-  <!-- Tab -->
-  <div id="tabs">
-    <button class="tab active" onclick="switchTab('timeline',this)">时间线</button>
-    <button class="tab" onclick="switchTab('tags',this)">分类</button>
-    <button class="tab" onclick="switchTab('regions',this)">地点</button>
-    <button class="tab" onclick="switchTab('videos',this)">视频</button>
-  </div>
-
   <main id="main-scroll">
     <div id="tab-timeline"></div>
     <div id="tab-tags"    style="display:none"></div>
@@ -321,17 +341,20 @@
   </main>
 
   <nav>
-    <button class="nav-item active" onclick="switchTab('timeline',null,this)">
+    <button class="nav-item active" data-tab="timeline" onclick="switchTab('timeline',this)">
       <span class="nav-icon">🏠</span>时间线
     </button>
     <button class="nav-item" onclick="openUpload()">
       <span class="nav-icon">＋</span>上传
     </button>
-    <button class="nav-item" onclick="switchTab('tags',null,this)">
+    <button class="nav-item" data-tab="tags" onclick="switchTab('tags',this)">
       <span class="nav-icon">⊞</span>分类
     </button>
-    <button class="nav-item" onclick="switchTab('regions',null,this)">
+    <button class="nav-item" data-tab="regions" onclick="switchTab('regions',this)">
       <span class="nav-icon">📍</span>地点
+    </button>
+    <button class="nav-item" data-tab="videos" onclick="switchTab('videos',this)">
+      <span class="nav-icon">🎬</span>视频
     </button>
   </nav>
 </div>
@@ -404,23 +427,27 @@ async function loadStats() {
 // ══════════════════════════════════════════════
 // Tab 切换
 // ══════════════════════════════════════════════
-function switchTab(tab, tabEl, navEl) {
+const tabLoaded = {}; // 缓存：已加载过的 tab 不重复请求
+
+function switchTab(tab, navEl) {
+  if (currentTab === tab) return; // 已在当前 tab，不重复操作
   currentTab = tab;
 
-  // tab 按钮高亮
-  if (tabEl) {
-    document.querySelectorAll('#tabs .tab').forEach(t => t.classList.remove('active'));
-    tabEl.classList.add('active');
-  }
-  // 底导航高亮
-  if (navEl) {
-    document.querySelectorAll('nav .nav-item').forEach(n => n.classList.remove('active'));
-    navEl.classList.add('active');
-  }
+  // 底部导航高亮
+  document.querySelectorAll('nav .nav-item[data-tab]').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
 
+  // 显示/隐藏内容区
   ['timeline','tags','regions','videos'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
   });
+
+  // 滚动回顶部
+  document.getElementById('main-scroll').scrollTop = 0;
+
+  // 已加载过则不重新请求（时间线除外，需刷新）
+  if (tabLoaded[tab] && tab !== 'timeline') return;
+  tabLoaded[tab] = true;
   loadCurrentTab();
 }
 
@@ -432,40 +459,71 @@ function loadCurrentTab() {
 }
 
 // ══════════════════════════════════════════════
-// 时间线
+// 时间线：月份封面网格
 // ══════════════════════════════════════════════
+let _tlGroups = []; // 缓存月份列表
+
 async function loadTimeline() {
   const tl = document.getElementById('tab-timeline');
   tl.innerHTML = '';
   try {
-    const groups = await fetch('/api/timeline').then(r => r.json());
-    if (!groups.length) { document.getElementById('empty').style.display = 'flex'; return; }
+    _tlGroups = await fetch('/api/timeline').then(r => r.json());
+    if (!_tlGroups.length) { document.getElementById('empty').style.display = 'flex'; return; }
     document.getElementById('empty').style.display = 'none';
-    for (const g of groups) {
-      const sec = document.createElement('div');
-      sec.className = 'month-group';
-      sec.innerHTML = `
-        <div class="month-header">
-          <div class="month-label">${g.label}</div>
-          <div class="month-count">${g.count} 个</div>
-        </div>
-        <div class="media-grid" id="grid-${g.year}-${g.month}">
-          ${Array(Math.min(g.count,8)).fill('<div class="skeleton"></div>').join('')}
-        </div>`;
-      tl.appendChild(sec);
-      loadMonthMedia(g.year, g.month);
-    }
+    renderTimelineGrid(tl);
   } catch (_) {
     tl.innerHTML = '<p style="color:#e05;padding:20px">加载失败</p>';
   }
 }
 
-async function loadMonthMedia(year, month) {
-  const grid = document.getElementById(`grid-${year}-${month}`);
-  if (!grid) return;
-  const data = await fetch(`/api/media?year=${year}&month=${month}&limit=200`).then(r => r.json());
-  grid.innerHTML = '';
-  renderMediaItems(grid, data.items);
+function renderTimelineGrid(container) {
+  const grid = document.createElement('div');
+  grid.className = 'tl-grid';
+  for (const g of _tlGroups) {
+    const card = document.createElement('div');
+    card.className = 'tl-card';
+    // 封面图：优先缩略图，视频封面也支持
+    const thumbUrl = `/media/thumbs/${g.cover}.jpg`;
+    card.innerHTML = `
+      <img src="${thumbUrl}" loading="lazy" onerror="this.style.display='none'">
+      <div class="tl-card-placeholder">📷</div>
+      <div class="tl-card-overlay">
+        <div class="tl-card-label">${g.label}</div>
+        <div class="tl-card-count">${g.count} 个</div>
+      </div>`;
+    card.addEventListener('click', () => openMonthDetail(g));
+    grid.appendChild(card);
+  }
+  container.appendChild(grid);
+}
+
+// 月份媒体缓存
+const _monthCache = {};
+async function openMonthDetail(g) {
+  const tl = document.getElementById('tab-timeline');
+  tl.innerHTML = `
+    <div class="month-detail-header">
+      <button class="back-btn" id="tl-back-btn">‹</button>
+      <span class="month-detail-title">${g.label}</span>
+      <span class="month-detail-count">${g.count} 个</span>
+    </div>
+    <div class="media-grid" id="month-detail-grid">
+      ${Array(Math.min(g.count, 12)).fill('<div class="skeleton"></div>').join('')}
+    </div>`;
+  document.getElementById('main-scroll').scrollTop = 0;
+  document.getElementById('tl-back-btn').addEventListener('click', () => {
+    tl.innerHTML = '';
+    renderTimelineGrid(tl);
+    document.getElementById('main-scroll').scrollTop = 0;
+  });
+
+  const key = `${g.year}-${g.month}`;
+  let data = _monthCache[key];
+  if (!data) {
+    data = await fetch(`/api/media?year=${g.year}&month=${g.month}&limit=500`).then(r => r.json());
+    _monthCache[key] = data;
+  }
+  renderMediaItems(document.getElementById('month-detail-grid'), data.items);
 }
 
 // ══════════════════════════════════════════════
@@ -483,7 +541,7 @@ async function loadTags() {
       const card = document.createElement('div');
       card.className = 'cat-card';
       const coverMedia = t.coverType === 'video'
-        ? `<video src="/media/${t.coverFile}#t=1" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></video>`
+        ? `<div style="position:absolute;inset:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:36px">🎬</div>`
         : `<img src="/media/thumbs/${t.cover}.jpg" onerror="this.src='/media/${t.coverFile||t.cover}';this.onerror=null" loading="lazy">`;
       card.innerHTML = `
         ${coverMedia}
@@ -499,6 +557,7 @@ async function loadTags() {
 }
 
 async function openTagView(tag) {
+  tabLoaded['tags'] = false; // 返回时重新加载分类列表
   const el = document.getElementById('tab-tags');
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 16px">
@@ -528,7 +587,7 @@ async function loadRegions() {
       const card = document.createElement('div');
       card.className = 'cat-card';
       const coverMedia = r.coverType === 'video'
-        ? `<video src="/media/${r.coverFile}#t=1" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></video>`
+        ? `<div style="position:absolute;inset:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:36px">🎬</div>`
         : `<img src="/media/thumbs/${r.cover}.jpg" onerror="this.onerror=null" loading="lazy">`;
       card.innerHTML = `
         ${coverMedia}
@@ -544,6 +603,7 @@ async function loadRegions() {
 }
 
 async function openRegionView(region) {
+  tabLoaded['regions'] = false; // 返回时重新加载地点列表
   const el = document.getElementById('tab-regions');
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 16px">
@@ -585,10 +645,19 @@ function renderMediaItems(container, items) {
     const div = document.createElement('div');
     div.className = 'media-item';
     if (item.type === 'video') {
-      div.innerHTML = `
-        <video src="${item.url}#t=0.5" preload="metadata"></video>
-        <div class="play-icon">▶</div>
-        <div class="video-badge">视频</div>`;
+      if (item.thumb) {
+        // 有截帧缩略图，直接显示
+        div.innerHTML = `
+          <img src="${item.thumb}" loading="lazy" alt="">
+          <div class="play-icon">▶</div>
+          <div class="video-badge">视频</div>`;
+      } else {
+        // 无缩略图，emoji 占位
+        div.innerHTML = `
+          <div style="width:100%;height:100%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:40px">🎬</div>
+          <div class="play-icon">▶</div>
+          <div class="video-badge">视频</div>`;
+      }
     } else {
       div.innerHTML = `<img src="${item.thumb || item.url}" loading="lazy" alt="">`;
     }
@@ -652,6 +721,22 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') lbNav(1);
   if (e.key === 'Escape') closeLightbox();
 });
+
+// 下滑手势关闭灯箱（移动端）
+(function() {
+  let touchStartY = 0, touchStartX = 0;
+  const lb = document.getElementById('lightbox');
+  lb.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  lb.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
+    // 下滑超过 80px 且水平位移较小，则关闭
+    if (dy > 80 && dx < 60) closeLightbox();
+  }, { passive: true });
+})();
 
 // ══════════════════════════════════════════════
 // 上传

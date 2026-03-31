@@ -4,17 +4,79 @@ const path    = require('path');
 const fs      = require('fs');
 const crypto  = require('crypto');
 
+// ── ffmpeg（视频截帧）────────────────────────────────────────
+// 按平台自动选择 bin/ 子目录中的静态二进制
+// 目录结构：bin/windows/ffmpeg.exe  bin/liunx/ffmpeg  bin/mac/ffmpeg
+const FFMPEG_BIN_MAP = {
+  win32:  path.join('windows', 'ffmpeg.exe'),
+  linux:  path.join('liunx',   'ffmpeg'),
+  darwin: path.join('mac',     'ffmpeg'),
+};
+const LOCAL_FFMPEG = path.join(
+  __dirname, 'bin',
+  FFMPEG_BIN_MAP[process.platform] || path.join('liunx', 'ffmpeg')
+);
+const SYS_FFMPEG = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+
+let ffmpeg = null;
+try {
+  ffmpeg = require('fluent-ffmpeg');
+  if (fs.existsSync(LOCAL_FFMPEG)) {
+    ffmpeg.setFfmpegPath(LOCAL_FFMPEG);
+    console.log('[ffmpeg] 平台:', process.platform, '→', LOCAL_FFMPEG);
+  } else {
+    // 回退：尝试系统 PATH 中的 ffmpeg
+    ffmpeg.setFfmpegPath(SYS_FFMPEG);
+    console.warn('[ffmpeg] 未找到本地二进制，使用系统 ffmpeg:', SYS_FFMPEG);
+  }
+} catch (_) {
+  console.warn('[warn] fluent-ffmpeg 未安装，视频缩略图功能不可用');
+}
+
+// 从视频截取第 1 秒帧，生成 400x400 缩略图
+function makeVideoThumb(videoPath, thumbPath) {
+  return new Promise((resolve) => {
+    if (!ffmpeg) return resolve(false);
+    try {
+      ffmpeg(videoPath)
+        .on('end', () => resolve(true))
+        .on('error', () => resolve(false))
+        .screenshots({
+          timestamps: ['00:00:01'],
+          filename: path.basename(thumbPath),
+          folder: path.dirname(thumbPath),
+          size: '400x400'
+        });
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── 数据存储 ──────────────────────────────────────────────────
+// ── 数据存储（内存缓存，避免每次请求都读磁盘） ──────────────
 const DB_FILE = path.join(__dirname, 'db.json');
+let _dbCache = null;
+let _dbMtime = 0;
+
 function readDB() {
-  try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
-  catch (_) { return { media: [], albums: {} }; }
+  try {
+    const stat = fs.statSync(DB_FILE);
+    const mtime = stat.mtimeMs;
+    if (_dbCache && mtime === _dbMtime) return _dbCache;
+    _dbCache = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    _dbMtime = mtime;
+    return _dbCache;
+  } catch (_) {
+    return { media: [], albums: {} };
+  }
 }
 function writeDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  _dbCache = data;
+  try { _dbMtime = fs.statSync(DB_FILE).mtimeMs; } catch (_) {}
 }
 
 // ── 目录 ──────────────────────────────────────────────────────
@@ -178,6 +240,10 @@ function gpsDecimal(val, ref) {
 
 // ── 静态资源 ──────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
+// 缩略图：强缓存 7 天（内容基于 id，不会变化）
+app.use('/media/thumbs', express.static(path.join(THUMB_DIR), {
+  maxAge: '7d', immutable: true
+}));
 app.use('/media', express.static(UPLOAD_DIR));
 app.use(express.json());
 
@@ -237,14 +303,17 @@ app.post('/api/upload', upload.array('files', 100), async (req, res) => {
     const [year, month] = takenAt.split('-').map(Number);
     day = parseInt(takenAt.split('-')[2]) || 1;
 
-    // 缩略图
+    // ── 缩略图生成 ──────────────────────────────────────────
+    const thumbPath = path.join(THUMB_DIR, id + '.jpg');
     if (type === 'image' && sharp) {
       try {
         await sharp(file.path)
           .resize(400, 400, { fit: 'cover' })
           .jpeg({ quality: 80 })
-          .toFile(path.join(THUMB_DIR, id + '.jpg'));
+          .toFile(thumbPath);
       } catch (_) {}
+    } else if (type === 'video') {
+      await makeVideoThumb(file.path, thumbPath);
     }
 
     const item = {
@@ -285,11 +354,19 @@ app.get('/api/timeline', (req, res) => {
   const map = {};
   for (const m of media) {
     const key = `${m.year}-${String(m.month).padStart(2,'0')}`;
-    if (!map[key]) map[key] = {
-      year: m.year, month: m.month,
-      label: `${m.year}年${String(m.month).padStart(2,'0')}月`,
-      count: 0, cover: m.id
-    };
+    if (!map[key]) {
+      map[key] = {
+        year: m.year, month: m.month,
+        label: `${m.year}年${String(m.month).padStart(2,'0')}月`,
+        count: 0,
+        cover: m.id, coverType: m.type, coverFile: m.filename
+      };
+    } else if (map[key].coverType !== 'image' && m.type === 'image') {
+      // 优先用图片作封面
+      map[key].cover = m.id;
+      map[key].coverType = 'image';
+      map[key].coverFile = m.filename;
+    }
     map[key].count++;
   }
   res.json(Object.values(map).sort((a, b) =>
@@ -311,17 +388,21 @@ app.get('/api/media', (req, res) => {
   const total = media.length;
   const items = media.slice((+page - 1) * +limit, +page * +limit);
 
+  // 允许客户端缓存 60 秒（手机弱网显著提速）
+  res.set('Cache-Control', 'public, max-age=60');
   res.json({
     total,
-    items: items.map(m => ({
-      id: m.id, type: m.type, filename: m.filename, original: m.original,
-      takenAt: m.takenAt, region: m.region, tags: m.tags || [],
-      url:   `/media/${m.filename}`,
-      thumb: m.type === 'image'
-        ? (fs.existsSync(path.join(THUMB_DIR, m.id + '.jpg'))
-            ? `/media/thumbs/${m.id}.jpg` : `/media/${m.filename}`)
-        : null
-    }))
+    items: items.map(m => {
+      const thumbFile = path.join(THUMB_DIR, m.id + '.jpg');
+      const hasThumb  = fs.existsSync(thumbFile);
+      return {
+        id: m.id, type: m.type, filename: m.filename, original: m.original,
+        takenAt: m.takenAt, region: m.region, tags: m.tags || [],
+        url:   `/media/${m.filename}`,
+        thumb: hasThumb ? `/media/thumbs/${m.id}.jpg`
+             : (m.type === 'image' ? `/media/${m.filename}` : null)
+      };
+    })
   });
 });
 

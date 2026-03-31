@@ -445,8 +445,8 @@ function switchTab(tab, navEl) {
   // 滚动回顶部
   document.getElementById('main-scroll').scrollTop = 0;
 
-  // 已加载过则不重新请求（时间线除外，需刷新）
-  if (tabLoaded[tab] && tab !== 'timeline') return;
+  // 时间线和视频每次切换都刷新；其他 tab 首次加载后缓存
+  if (tabLoaded[tab] && tab !== 'timeline' && tab !== 'videos') return;
   tabLoaded[tab] = true;
   loadCurrentTab();
 }
@@ -621,7 +621,7 @@ async function openRegionView(region) {
 async function loadVideos() {
   const el = document.getElementById('tab-videos');
   el.innerHTML = '';
-  const data = await fetch('/api/media?type=video&limit=500').then(r => r.json());
+  const data = await fetch('/api/media?type=video&limit=500', { cache: 'no-store' }).then(r => r.json());
   if (!data.items.length) {
     el.innerHTML = '<p style="color:var(--text2);padding:40px 20px;text-align:center">暂无视频</p>';
     return;
@@ -801,6 +801,9 @@ async function handleFiles(files) {
   setTimeout(() => {
     document.getElementById('upload-panel').classList.remove('open');
     prog.style.display = 'none'; fill.style.width = '0%';
+    // 清除所有 tab 缓存和月份缓存，确保新文件立即可见
+    Object.keys(tabLoaded).forEach(k => delete tabLoaded[k]);
+    Object.keys(_monthCache).forEach(k => delete _monthCache[k]);
     init();
   }, 1500);
 }

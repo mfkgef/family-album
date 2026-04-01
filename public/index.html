@@ -209,18 +209,18 @@
       display: flex; align-items: center; justify-content: center;
     }
 
-    /* 媒体主体 */
+    /* 媒体主体 - 滑动视窗 */
     #lb-body { flex: 1; display: flex; align-items: center; justify-content: center;
       overflow: hidden; position: relative; }
-    #lb-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-      opacity: 1; transform: translateX(0); will-change: transform, opacity;
-      transition: opacity .28s cubic-bezier(.22,.61,.36,1), transform .34s cubic-bezier(.22,.61,.36,1); }
-    #lb-content img { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; }
-    #lb-content video { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; }
-    #lb-content.lb-switch-out-next { opacity: .55; transform: translateX(-14px); }
-    #lb-content.lb-switch-out-prev { opacity: .55; transform: translateX(14px); }
-    #lb-content.lb-switch-in-next { opacity: .55; transform: translateX(14px); }
-    #lb-content.lb-switch-in-prev { opacity: .55; transform: translateX(-14px); }
+    #lb-viewport { width: 100%; height: 100%; overflow: hidden; position: relative; }
+    #lb-track { display: flex; height: 100%; width: 300%; 
+      transform: translateX(-33.333%); will-change: transform;
+      transition: transform .35s cubic-bezier(.32,.72,.35,1); }
+    #lb-track.dragging { transition: none; }
+    .lb-slide { flex: 0 0 33.333%; height: 100%; display: flex; align-items: center; justify-content: center;
+      padding: 0 10px; }
+    .lb-slide img { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; }
+    .lb-slide video { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; }
 
     /* 左右箭头 */
     #lb-prev, #lb-next { position: absolute; top: 50%; transform: translateY(-50%);
@@ -395,7 +395,13 @@
 <!-- 灯箱 -->
 <div id="lightbox">
   <div id="lb-body">
-    <div id="lb-content"></div>
+    <div id="lb-viewport">
+      <div id="lb-track">
+        <div class="lb-slide" id="lb-slide-prev"></div>
+        <div class="lb-slide" id="lb-slide-curr"></div>
+        <div class="lb-slide" id="lb-slide-next"></div>
+      </div>
+    </div>
   </div>
   <!-- 可隐藏 UI 层 -->
   <div id="lb-ui">
@@ -773,45 +779,72 @@ function toggleLbUi() {
   }
 }
 
+function _setSlideContent(el, item) {
+  if (!item) {
+    el.innerHTML = '';
+    return;
+  }
+  if (item.type === 'video') {
+    el.innerHTML = `<video src="${item.url}" controls playsinline></video>`;
+  } else {
+    el.innerHTML = `<img src="${item.url}" alt="">`;
+  }
+}
+
 function renderLightbox(dir = 0) {
-  const item = lbItems[lbIndex];
+  const curr = lbItems[lbIndex];
+  const prev = lbItems[lbIndex - 1];
+  const next = lbItems[lbIndex + 1];
+
   document.getElementById('lb-title').textContent = `${lbIndex + 1} / ${lbItems.length}`;
-  const infoArr = [item.takenAt];
-  if (item.region) infoArr.push('📍 ' + item.region);
-  if (item.tags?.length) infoArr.push(item.tags.slice(0,3).join(' · '));
+  const infoArr = [curr.takenAt];
+  if (curr.region) infoArr.push('📍 ' + curr.region);
+  if (curr.tags?.length) infoArr.push(curr.tags.slice(0,3).join(' · '));
   document.getElementById('lb-info').textContent = infoArr.filter(Boolean).join('  ');
 
-  const content = document.getElementById('lb-content');
-  const token = ++_lbRenderToken;
-  const outClass = dir > 0 ? 'lb-switch-out-next' : 'lb-switch-out-prev';
-  const inClass = dir > 0 ? 'lb-switch-in-next' : 'lb-switch-in-prev';
+  const track = document.getElementById('lb-track');
+  const slidePrev = document.getElementById('lb-slide-prev');
+  const slideCurr = document.getElementById('lb-slide-curr');
+  const slideNext = document.getElementById('lb-slide-next');
 
-  const setMedia = () => {
-    if (item.type === 'video') {
-      content.innerHTML = `<video src="${item.url}" controls autoplay playsinline></video>`;
-    } else {
-      content.innerHTML = `<img src="${item.url}" alt="">`;
-    }
-  };
-
-  content.classList.remove('lb-switch-out-next', 'lb-switch-out-prev', 'lb-switch-in-next', 'lb-switch-in-prev');
-
-  if (dir === 0) {
-    setMedia();
-  } else {
-    content.classList.add(outClass);
+  // 方向性滑动：先位移，动画结束后再重置位置并更新内容
+  if (dir > 0) {
+    // 去下一张：向左滑
+    track.style.transform = 'translateX(-66.666%)';
     setTimeout(() => {
-      if (token !== _lbRenderToken) return;
-      setMedia();
-      content.classList.remove(outClass);
-      content.classList.add(inClass);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (token !== _lbRenderToken) return;
-          content.classList.remove(inClass);
-        });
-      });
-    }, 110);
+      track.classList.add('dragging'); // 临时禁用动画
+      track.style.transform = 'translateX(-33.333%)';
+      _setSlideContent(slidePrev, prev);
+      _setSlideContent(slideCurr, curr);
+      _setSlideContent(slideNext, next);
+      // 当前视频自动播放
+      const v = slideCurr.querySelector('video');
+      if (v) v.play().catch(()=>{});
+      track.offsetHeight; // force reflow
+      track.classList.remove('dragging');
+    }, 350);
+  } else if (dir < 0) {
+    // 去上一张：向右滑
+    track.style.transform = 'translateX(0%)';
+    setTimeout(() => {
+      track.classList.add('dragging');
+      track.style.transform = 'translateX(-33.333%)';
+      _setSlideContent(slidePrev, prev);
+      _setSlideContent(slideCurr, curr);
+      _setSlideContent(slideNext, next);
+      const v = slideCurr.querySelector('video');
+      if (v) v.play().catch(()=>{});
+      track.offsetHeight;
+      track.classList.remove('dragging');
+    }, 350);
+  } else {
+    // 初始打开，无动画
+    _setSlideContent(slidePrev, prev);
+    _setSlideContent(slideCurr, curr);
+    _setSlideContent(slideNext, next);
+    track.style.transform = 'translateX(-33.333%)';
+    const v = slideCurr.querySelector('video');
+    if (v) v.play().catch(()=>{});
   }
 
   document.getElementById('lb-prev').style.display = lbIndex > 0 ? '' : 'none';
@@ -821,7 +854,9 @@ function renderLightbox(dir = 0) {
 
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
-  document.getElementById('lb-content').innerHTML = '';
+  document.getElementById('lb-slide-prev').innerHTML = '';
+  document.getElementById('lb-slide-curr').innerHTML = '';
+  document.getElementById('lb-slide-next').innerHTML = '';
   if (_lbUiTimer) clearTimeout(_lbUiTimer);
 }
 
@@ -862,36 +897,76 @@ document.getElementById('lb-body').addEventListener('click', e => {
   toggleLbUi();
 });
 
-// ── 手势：下滑关闭 / 左右切换
+// ── 手势：下滑关闭 / 左右拖拽跟随 + 松手切换
 (function() {
-  let sx = 0, sy = 0, moving = false;
-  const lb = document.getElementById('lightbox');
+  const track = document.getElementById('lb-track');
+  const viewport = document.getElementById('lb-viewport');
+  let sx = 0, sy = 0, cx = 0, moving = false, dragging = false;
 
-  lb.addEventListener('touchstart', e => {
+  function getBaseX() {
+    const w = viewport.clientWidth;
+    return -w; // -33.333% 对应 -viewport宽
+  }
+
+  viewport.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) return;
     sx = e.touches[0].clientX;
     sy = e.touches[0].clientY;
+    cx = sx;
     moving = false;
+    dragging = false;
+    track.classList.add('dragging');
   }, { passive: true });
 
-  lb.addEventListener('touchmove', e => {
-    moving = true;
+  viewport.addEventListener('touchmove', e => {
+    if (e.touches.length !== 1) return;
+    const x = e.touches[0].clientX;
+    const y = e.touches[0].clientY;
+    const dx = x - sx;
+    const dy = y - sy;
+    cx = x;
+
+    if (!dragging) {
+      // 判断主导方向
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        if (Math.abs(dx) > Math.abs(dy)) dragging = true;
+        else moving = true;
+      }
+    }
+
+    if (dragging) {
+      // 边界阻尼
+      let damp = 1;
+      if ((lbIndex === 0 && dx > 0) || (lbIndex === lbItems.length - 1 && dx < 0)) {
+        damp = 0.35;
+      }
+      track.style.transform = `translateX(calc(-33.333% + ${dx * damp}px))`;
+    } else {
+      moving = true;
+    }
   }, { passive: true });
 
-  lb.addEventListener('touchend', e => {
-    if (!moving) return;
-    const dx = e.changedTouches[0].clientX - sx;
+  viewport.addEventListener('touchend', e => {
+    track.classList.remove('dragging');
+    const dx = cx - sx;
     const dy = e.changedTouches[0].clientY - sy;
     const absDx = Math.abs(dx), absDy = Math.abs(dy);
 
-    // 下滑 > 90px 且以竖向为主 → 关闭
-    if (dy > 90 && absDy > absDx * 1.5) {
+    if (!dragging && moving && dy > 90 && absDy > absDx * 1.5) {
       closeLightbox();
       return;
     }
-    // 左右滑 > 60px 且以横向为主 → 切换
-    if (absDx > 60 && absDx > absDy * 1.2) {
-      lbNav(dx < 0 ? 1 : -1);
+
+    if (dragging) {
+      const threshold = viewport.clientWidth * 0.22;
+      if (dx < -threshold && lbIndex < lbItems.length - 1) {
+        lbNav(1);
+      } else if (dx > threshold && lbIndex > 0) {
+        lbNav(-1);
+      } else {
+        // 回弹
+        track.style.transform = 'translateX(-33.333%)';
+      }
     }
   }, { passive: true });
 })();

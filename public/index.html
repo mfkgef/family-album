@@ -181,7 +181,7 @@
     /* ── 月份详情页顶部返回栏 */
     .month-detail-header { display: flex; align-items: center; gap: 12px;
       padding: 12px 4px 16px; position: sticky; top: 0;
-      background: linear-gradient(180deg,var(--bg) 70%,rgba(250,247,242,0.95) 85%,transparent); 
+      /* background: linear-gradient(180deg,var(--bg) 70%,rgba(250,247,242,0.95) 85%,transparent);  */
       backdrop-filter: blur(12px);
       z-index: 5; }
     .back-btn { 
@@ -1061,7 +1061,7 @@ async function openTagView(tag) {
   tabLoaded['tags'] = false; // 返回时重新加载分类列表
   const el = document.getElementById('tab-tags');
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 16px">
+    <div class="month-detail-header">
       <button onclick="loadTags()" style="background:none;border:none;color:var(--accent);font-size:14px;cursor:pointer;display:flex;align-items:center;gap:4px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         返回
@@ -1131,7 +1131,7 @@ async function openRegionView(region) {
   tabLoaded['regions'] = false; // 返回时重新加载地点列表
   const el = document.getElementById('tab-regions');
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;padding:12px 4px 16px">
+    <div class="month-detail-header">
       <button onclick="loadRegions()" style="background:none;border:none;color:var(--accent);font-size:14px;cursor:pointer;display:flex;align-items:center;gap:4px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         返回

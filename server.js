@@ -348,24 +348,29 @@ app.post('/api/check-exists', express.json(), (req, res) => {
 app.get('/api/timeline', (req, res) => {
   const { media } = readDB();
   const map = {};
+  // 按月份分组收集所有媒体
   for (const m of media) {
     const key = `${m.year}-${String(m.month).padStart(2,'0')}`;
     if (!map[key]) {
       map[key] = {
         year: m.year, month: m.month,
         label: `${m.year}年${String(m.month).padStart(2,'0')}月`,
-        count: 0,
-        cover: m.id, coverType: m.type, coverFile: m.filename
+        items: []
       };
-    } else if (map[key].coverType !== 'image' && m.type === 'image') {
-      // 优先用图片作封面
-      map[key].cover = m.id;
-      map[key].coverType = 'image';
-      map[key].coverFile = m.filename;
     }
-    map[key].count++;
+    map[key].items.push(m);
   }
-  res.json(Object.values(map).sort((a, b) =>
+  // 对每个月份按 takenAt 降序排序，取第一个作为封面
+  const result = Object.values(map).map(g => {
+    g.items.sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+    const first = g.items[0];
+    return {
+      year: g.year, month: g.month, label: g.label,
+      count: g.items.length,
+      cover: first.id, coverType: first.type, coverFile: first.filename
+    };
+  });
+  res.json(result.sort((a, b) =>
     b.year !== a.year ? b.year - a.year : b.month - a.month
   ));
 });

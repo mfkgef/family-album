@@ -193,7 +193,7 @@
       transition: all 0.25s ease;
     }
     .back-btn:hover { transform: translateX(-2px); box-shadow: 0 4px 12px var(--shadow-hover); }
-    .month-detail-title { font-size: 20px; font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
+    .month-detail-title { font-size: 20px; color: var(--accent3); font-weight: 700; font-family: 'Playfair Display', Georgia, serif; }
     .month-detail-count { font-size: 13px; color: var(--text2); margin-left: auto; 
       background: var(--bg2); padding: 6px 12px; border-radius: 20px;
       border: 1px solid var(--glass-border); font-weight: 500; }
@@ -1062,11 +1062,12 @@ async function openTagView(tag) {
   const el = document.getElementById('tab-tags');
   el.innerHTML = `
     <div class="month-detail-header">
-      <button onclick="loadTags()" style="background:none;border:none;color:var(--accent);font-size:14px;cursor:pointer;display:flex;align-items:center;gap:4px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回
+      <button onclick="loadTags()" class="back-btn" id="tl-back-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
       </button>
-      <span style="font-size:16px;font-weight:700">${tag}</span>
+      <span style="font-size:16px;font-weight:700;color:var(--accent3);">${tag}</span>
     </div>
     <div class="media-grid" id="tag-grid"></div>`;
   const data = await fetch(`/api/media?tag=${encodeURIComponent(tag)}&limit=500`, { cache: 'no-store' }).then(r => r.json());
@@ -1132,9 +1133,10 @@ async function openRegionView(region) {
   const el = document.getElementById('tab-regions');
   el.innerHTML = `
     <div class="month-detail-header">
-      <button onclick="loadRegions()" style="background:none;border:none;color:var(--accent);font-size:14px;cursor:pointer;display:flex;align-items:center;gap:4px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回
+      <button onclick="loadRegions()" class="back-btn" id="tl-back-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
       </button>
       <span style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:4px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>

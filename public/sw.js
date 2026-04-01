@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'family-album-static-v9';
+const CACHE_STATIC = 'family-album-static-v14';
 const CACHE_THUMBS = 'family-album-thumbs-v2';
 const STATIC_FILES = ['/', '/index.html', '/manifest.json'];
 

@@ -306,30 +306,27 @@
     #fab-wrap {
       position: fixed;
       right: 20px;
-      bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 15px);
       z-index: 30;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+      width: 56px;
+      height: 56px;
+      pointer-events: none;
     }
+    #fab-btn { pointer-events: auto; }
 
-    /* 遮罩 */
-    #fab-overlay {
-      position: fixed; inset: 0; z-index: 29;
-      background: rgba(61, 61, 61, 0.22);
-      backdrop-filter: blur(5px) saturate(120%);
-      -webkit-backdrop-filter: blur(5px) saturate(120%);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-    #fab-overlay.visible { opacity: 1; pointer-events: auto; }
-
-    /* 子按钮容器 */
+    /* 子按钮容器 —— 绝对定位向上展开，不撑开 fab-wrap 高度 */
     #fab-menu {
+      position: absolute;
+      bottom: calc(100% + 12px);
+      right: 0;
       display: flex; flex-direction: column; align-items: flex-end;
       gap: 10px;
-      margin-bottom: 14px;
-      position: relative; z-index: 30;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    #fab-wrap.fab-open #fab-menu {
+      pointer-events: auto;
+      visibility: visible;
     }
 
     /* 单个子按钮 */
@@ -727,7 +724,6 @@
     </div>
   </main>
 
-  <div id="fab-overlay" onclick="closeFab()"></div>
   <div id="fab-wrap">
     <div id="fab-menu">
       <!-- 时间线 -->
@@ -897,12 +893,17 @@ async function loadStats() {
 const tabLoaded = {}; // 缓存：已加载过的 tab 不重复请求
 
 function switchTab(tab, navEl) {
-  if (currentTab === tab) return; // 已在当前 tab，不重复操作
+  if (currentTab === tab) return;
   currentTab = tab;
 
   // 显示/隐藏内容区
   ['timeline','tags','regions','videos'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+
+  // 同步 FAB 子按钮高亮
+  document.querySelectorAll('#fab-menu .fab-item').forEach(item => {
+    item.classList.toggle('active', item.getAttribute('data-tab') === tab);
   });
 
   // 滚动回顶部
@@ -1808,15 +1809,11 @@ if ('serviceWorker' in navigator) {
 // FAB 悬浮导航
 // ══════════════════════════════════════════════
 function toggleFab() {
-  const wrap = document.getElementById('fab-wrap');
-  const overlay = document.getElementById('fab-overlay');
-  const isOpen = wrap.classList.toggle('fab-open');
-  overlay.classList.toggle('visible', isOpen);
+  document.getElementById('fab-wrap').classList.toggle('fab-open');
 }
 
 function closeFab() {
   document.getElementById('fab-wrap').classList.remove('fab-open');
-  document.getElementById('fab-overlay').classList.remove('visible');
 }
 
 function switchFabTab(tab, el) {

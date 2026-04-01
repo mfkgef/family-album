@@ -182,36 +182,63 @@
 
     /* ── 灯箱 */
     #lightbox { position: fixed; inset: 0; z-index: 500;
-      background: rgba(0,0,0,.96); display: none; flex-direction: column; }
+      background: #000; display: none; flex-direction: column; }
     #lightbox.open { display: flex; }
-    #lb-header { display: flex; align-items: center; justify-content: center;
-      padding: calc(var(--safe-top)+12px) 70px 10px; min-height: 54px; }
-    #lb-title { font-size: 13px; color: var(--text2); }
-    #lb-close {
-      position: fixed; bottom: calc(env(safe-area-inset-bottom,0px) + 36px); right: 24px;
-      width: 56px; height: 56px; border-radius: 50%;
-      background: rgba(255,255,255,.18); backdrop-filter: blur(10px);
-      border: 1.5px solid rgba(255,255,255,.3);
-      color: #fff; font-size: 22px; cursor: pointer; z-index: 10;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+
+    /* 顶部 & 底部 UI 层（可隐藏） */
+    #lb-ui { position: absolute; inset: 0; z-index: 10; pointer-events: none;
+      transition: opacity .3s; }
+    #lb-ui.hidden { opacity: 0; pointer-events: none; }
+    #lb-ui.hidden #lb-header, #lb-ui.hidden #lb-footer,
+    #lb-ui.hidden #lb-prev, #lb-ui.hidden #lb-next { pointer-events: none; }
+    #lb-ui:not(.hidden) #lb-header, #lb-ui:not(.hidden) #lb-footer,
+    #lb-ui:not(.hidden) #lb-prev, #lb-ui:not(.hidden) #lb-next { pointer-events: auto; }
+
+    #lb-header {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: calc(var(--safe-top)+14px) 16px 14px;
+      background: linear-gradient(180deg,rgba(0,0,0,.75) 0%,transparent 100%);
     }
+    #lb-title { font-size: 13px; color: rgba(255,255,255,.8); }
+    #lb-close {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,.15); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* 媒体主体 */
     #lb-body { flex: 1; display: flex; align-items: center; justify-content: center;
       overflow: hidden; position: relative; }
-    #lb-body img, #lb-body video { max-width: 100%; max-height: 100%; object-fit: contain; }
+    #lb-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    #lb-content img { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; }
+    #lb-content video { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; }
+
+    /* 左右箭头 */
     #lb-prev, #lb-next { position: absolute; top: 50%; transform: translateY(-50%);
       background: rgba(255,255,255,.12); border: none; color: #fff; font-size: 26px;
       padding: 14px 10px; cursor: pointer; border-radius: 6px; transition: background .2s; z-index: 2; }
     #lb-prev { left: 6px; } #lb-next { right: 6px; }
     #lb-prev:hover, #lb-next:hover { background: rgba(255,255,255,.22); }
-    #lb-footer { padding: 10px 14px calc(env(safe-area-inset-bottom,0px) + 110px);
-      display: flex; justify-content: space-between; align-items: center; }
-    #lb-info { font-size: 11px; color: var(--text2); }
+
+    /* 底部操作栏 */
+    #lb-footer {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 16px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+      background: linear-gradient(0deg,rgba(0,0,0,.75) 0%,transparent 100%);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #lb-info { font-size: 11px; color: rgba(255,255,255,.7); line-height: 1.5; max-width: 60%; }
     .lb-actions { display: flex; gap: 10px; }
-    .lb-btn { padding: 7px 16px; border-radius: 18px; border: 1px solid rgba(255,255,255,.2);
-      background: none; color: var(--text); font-size: 13px; cursor: pointer; transition: background .2s; }
-    .lb-btn:hover { background: rgba(255,255,255,.1); }
-    .lb-btn.danger { border-color: #e05; color: #e05; }
+    .lb-btn { padding: 9px 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,.3);
+      background: rgba(0,0,0,.4); backdrop-filter: blur(8px);
+      color: #fff; font-size: 13px; cursor: pointer; transition: background .2s; }
+    .lb-btn:hover { background: rgba(255,255,255,.15); }
+    .lb-btn.danger { border-color: rgba(255,50,80,.7); color: #ff4060; }
+
+
 
     /* ── 上传面板 */
     #upload-panel { position: fixed; inset: 0; z-index: 50;
@@ -361,20 +388,23 @@
 
 <!-- 灯箱 -->
 <div id="lightbox">
-  <div id="lb-header">
-    <span id="lb-title"></span>
-    <button id="lb-close" onclick="closeLightbox()">✕</button>
-  </div>
   <div id="lb-body">
-    <button id="lb-prev" onclick="lbNav(-1)">‹</button>
     <div id="lb-content"></div>
-    <button id="lb-next" onclick="lbNav(1)">›</button>
   </div>
-  <div id="lb-footer">
-    <div id="lb-info"></div>
-    <div class="lb-actions">
-      <button class="lb-btn" onclick="downloadCurrent()">⬇ 下载</button>
-      <button class="lb-btn danger" onclick="deleteCurrent()">🗑 删除</button>
+  <!-- 可隐藏 UI 层 -->
+  <div id="lb-ui">
+    <div id="lb-header">
+      <span id="lb-title"></span>
+      <button id="lb-close" onclick="closeLightbox()">✕</button>
+    </div>
+    <button id="lb-prev" onclick="lbNav(-1)">‹</button>
+    <button id="lb-next" onclick="lbNav(1)">›</button>
+    <div id="lb-footer">
+      <div id="lb-info"></div>
+      <div class="lb-actions">
+        <button class="lb-btn" onclick="downloadCurrent()">⬇ 下载</button>
+        <button class="lb-btn danger" onclick="deleteCurrent()">🗑 删除</button>
+      </div>
     </div>
   </div>
 </div>
@@ -672,39 +702,68 @@ function renderMediaItems(container, items) {
 // ══════════════════════════════════════════════
 // 灯箱
 // ══════════════════════════════════════════════
+let _lbUiTimer = null;
+
 function openLightbox(items, index) {
   lbItems = items; lbIndex = index;
   renderLightbox();
-  document.getElementById('lightbox').classList.add('open');
+  const lb = document.getElementById('lightbox');
+  lb.classList.add('open');
+  // 打开时先显示 UI，3 秒后自动隐藏
+  showLbUi(true);
 }
+
+function showLbUi(autoHide) {
+  const ui = document.getElementById('lb-ui');
+  ui.classList.remove('hidden');
+  if (_lbUiTimer) clearTimeout(_lbUiTimer);
+  if (autoHide) {
+    _lbUiTimer = setTimeout(() => ui.classList.add('hidden'), 3000);
+  }
+}
+
+function toggleLbUi() {
+  const ui = document.getElementById('lb-ui');
+  if (ui.classList.contains('hidden')) {
+    showLbUi(true);
+  } else {
+    if (_lbUiTimer) clearTimeout(_lbUiTimer);
+    ui.classList.add('hidden');
+  }
+}
+
 function renderLightbox() {
   const item = lbItems[lbIndex];
-  document.getElementById('lb-title').textContent =
-    `${lbIndex + 1} / ${lbItems.length}`;
+  document.getElementById('lb-title').textContent = `${lbIndex + 1} / ${lbItems.length}`;
   const infoArr = [item.takenAt];
   if (item.region) infoArr.push('📍 ' + item.region);
   if (item.tags?.length) infoArr.push(item.tags.slice(0,3).join(' · '));
-  document.getElementById('lb-info').textContent = infoArr.join('  ');
+  document.getElementById('lb-info').textContent = infoArr.filter(Boolean).join('  ');
 
   const content = document.getElementById('lb-content');
   if (item.type === 'video') {
-    content.innerHTML = `<video src="${item.url}" controls autoplay
-      style="max-width:calc(100vw - 80px);max-height:calc(100dvh - 150px)"></video>`;
+    content.innerHTML = `<video src="${item.url}" controls autoplay playsinline></video>`;
   } else {
-    content.innerHTML = `<img src="${item.url}"
-      style="max-width:calc(100vw - 80px);max-height:calc(100dvh - 150px)" alt="">`;
+    content.innerHTML = `<img src="${item.url}" alt="">`;
   }
   document.getElementById('lb-prev').style.display = lbIndex > 0 ? '' : 'none';
   document.getElementById('lb-next').style.display = lbIndex < lbItems.length - 1 ? '' : 'none';
 }
+
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
   document.getElementById('lb-content').innerHTML = '';
+  if (_lbUiTimer) clearTimeout(_lbUiTimer);
 }
+
 function lbNav(dir) {
-  lbIndex = Math.max(0, Math.min(lbItems.length - 1, lbIndex + dir));
+  const newIdx = lbIndex + dir;
+  if (newIdx < 0 || newIdx >= lbItems.length) return;
+  lbIndex = newIdx;
   renderLightbox();
+  showLbUi(true);
 }
+
 function downloadCurrent() {
   const item = lbItems[lbIndex];
   const a = document.createElement('a');
@@ -713,8 +772,13 @@ function downloadCurrent() {
 async function deleteCurrent() {
   if (!confirm('确定删除？')) return;
   await fetch(`/api/media/${lbItems[lbIndex].id}`, { method: 'DELETE' });
-  closeLightbox(); init();
+  closeLightbox();
+  Object.keys(tabLoaded).forEach(k => delete tabLoaded[k]);
+  Object.keys(_monthCache).forEach(k => delete _monthCache[k]);
+  init();
 }
+
+// 键盘快捷键
 document.addEventListener('keydown', e => {
   if (!document.getElementById('lightbox').classList.contains('open')) return;
   if (e.key === 'ArrowLeft') lbNav(-1);
@@ -722,19 +786,44 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeLightbox();
 });
 
-// 下滑手势关闭灯箱（移动端）
+// 点击灯箱主体切换 UI 显隐（避开按钮区域触发）
+document.getElementById('lb-body').addEventListener('click', e => {
+  // 点击 lb-content 里的 video/img 不触发（让 video 控件可用）
+  if (e.target.tagName === 'VIDEO') return;
+  toggleLbUi();
+});
+
+// ── 手势：下滑关闭 / 左右切换
 (function() {
-  let touchStartY = 0, touchStartX = 0;
+  let sx = 0, sy = 0, moving = false;
   const lb = document.getElementById('lightbox');
+
   lb.addEventListener('touchstart', e => {
-    touchStartY = e.touches[0].clientY;
-    touchStartX = e.touches[0].clientX;
+    if (e.touches.length !== 1) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    moving = false;
   }, { passive: true });
+
+  lb.addEventListener('touchmove', e => {
+    moving = true;
+  }, { passive: true });
+
   lb.addEventListener('touchend', e => {
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    const dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
-    // 下滑超过 80px 且水平位移较小，则关闭
-    if (dy > 80 && dx < 60) closeLightbox();
+    if (!moving) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+
+    // 下滑 > 90px 且以竖向为主 → 关闭
+    if (dy > 90 && absDy > absDx * 1.5) {
+      closeLightbox();
+      return;
+    }
+    // 左右滑 > 60px 且以横向为主 → 切换
+    if (absDx > 60 && absDx > absDy * 1.2) {
+      lbNav(dx < 0 ? 1 : -1);
+    }
   }, { passive: true });
 })();
 

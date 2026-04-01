@@ -132,7 +132,7 @@
     @keyframes spin { to{transform:rotate(360deg)} }
 
     /* ── 主内容 */
-    main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 16px 80px; }
+    main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 80px); }
     main::-webkit-scrollbar { width: 6px; }
     main::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
     main::-webkit-scrollbar-track { background: transparent; }
@@ -304,18 +304,17 @@
 
     /* ── 底导航 - 毛玻璃悬浮 */
     nav { 
-      position: fixed; bottom: 8px; left: 16px; right: 16px; 
-      display: flex; border-radius: 20px;
+      position: fixed; bottom: 0; left: 0; right: 0; 
+      display: flex;
       background: var(--glass);
       backdrop-filter: blur(24px) saturate(180%);
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-      padding: 4px 6px calc(env(safe-area-inset-bottom,0px) + 4px); 
+      border-top: 1px solid var(--glass-border);
+      box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+      padding: 8px 6px env(safe-area-inset-bottom, 8px); 
       z-index: 20;
-      max-width: 480px; margin: 0 auto;
     }
     .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center;
-      gap: 2px; padding: 6px 0 4px; font-size: 10px; color: var(--text2);
+      gap: 2px; padding: 4px 0; font-size: 10px; color: var(--text2);
       cursor: pointer; border: none; background: none; 
       border-radius: 14px;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -337,7 +336,7 @@
 
     /* ── 灯箱 */
     #lightbox { position: fixed; inset: 0; z-index: 500;
-      background: linear-gradient(180deg, #1a1a1f 0%, #0f0f12 100%);
+      background: #000;
       display: none; flex-direction: column;
     }
     #lightbox.open { display: flex; }
@@ -382,8 +381,8 @@
     #lb-track.dragging { transition: none; }
     .lb-slide { flex: 0 0 33.333%; height: 100%; display: flex; align-items: center; justify-content: center;
       padding: 0 10px; }
-    .lb-slide img { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; border-radius: 4px; }
-    .lb-slide video { max-width: 100%; max-height: 100dvh; object-fit: contain; display: block; border-radius: 4px; }
+    .lb-slide img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; border-radius: 4px; }
+    .lb-slide video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; border-radius: 4px; }
 
     /* 左右箭头 - 玻璃拟态 */
     #lb-prev, #lb-next { position: absolute; top: 50%; transform: translateY(-50%);
@@ -402,8 +401,8 @@
     /* 底部操作栏 */
     #lb-footer {
       position: absolute; bottom: 0; left: 0; right: 0;
-      padding: 20px 24px calc(env(safe-area-inset-bottom,0px) + 20px);
-      background: linear-gradient(0deg,rgba(0,0,0,0.7) 0%,transparent 100%);
+      padding: 20px 24px calc(env(safe-area-inset-bottom, 20px) + 10px);
+      background: linear-gradient(0deg,rgba(0,0,0,0.85) 0%,transparent 100%);
       display: flex; justify-content: space-between; align-items: center;
     }
     #lb-info { font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.6; max-width: 55%; }
@@ -1185,6 +1184,7 @@ function openLightbox(items, index) {
   renderLightbox(0);
   const lb = document.getElementById('lightbox');
   lb.classList.add('open');
+  document.body.style.backgroundColor = '#000';
   // 打开时先显示 UI，3 秒后自动隐藏
   showLbUi(true);
   _scheduleIdle(() => _preloadAround(lbIndex));
@@ -1284,6 +1284,7 @@ function renderLightbox(dir = 0) {
 
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
+  document.body.style.backgroundColor = '';
   document.getElementById('lb-slide-prev').innerHTML = '';
   document.getElementById('lb-slide-curr').innerHTML = '';
   document.getElementById('lb-slide-next').innerHTML = '';
